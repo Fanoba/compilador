@@ -40,8 +40,7 @@ project/
 ├── parser.py         # Analizador sintáctico
 ├── main.py           # Punto de entrada
 ├── test.txt          # Programa de prueba en Little Duck
-├── parsetab.py       # Tabla generada por PLY
-├── parser.out        # Estados y reglas del parser
+├── parsetab.py       # Tabla generada por PLY      # Estados y reglas del parser
 └── README.md
 ```
 
@@ -53,16 +52,6 @@ project/
 
 El compilador leerá archivos `.txt` que contienen código fuente escrito en Little Duck.
 
-Ejemplo:
-
-```txt
-program test;
-begin
-    print("Hello World");
-end
-```
-
----
 
 ### 2. Análisis Léxico
 
@@ -85,14 +74,7 @@ Se implementará una gramática utilizando `ply.yacc`.
 
 Las reglas sintácticas se definirán mediante funciones separadas.
 
-Ejemplo:
 
-```python
-def p_expression_plus(p):
-    'expression : expression PLUS term'
-```
-
----
 
 ### 4. Manejo de Errores
 
@@ -105,14 +87,6 @@ El compilador deberá:
   - Línea
   - Posición
 
-Ejemplo:
-
-```txt
-Syntax Error:
-Unexpected token ';'
-Line: 5
-Column: 12
-```
 
 ---
 
