@@ -36,11 +36,7 @@ Desarrollar un compilador capaz de:
 ```bash
 project/
 │
-├── lexer.py          # Analizador léxico
-├── parser.py         # Analizador sintáctico
-├── main.py           # Punto de entrada
-├── test.txt          # Programa de prueba en Little Duck
-├── parsetab.py       # Tabla generada por PLY      # Estados y reglas del parser
+├── compilador.py          # Analizador léxico
 └── README.md
 ```
 
