@@ -1,0 +1,7 @@
+# Cache de Python (Directorios con los archivos compilados .pyc)
+__pycache__/
+*.pyc
+
+# Archivos de transiciones generados automáticamente por PLY
+parsetab.py
+parser.out
