@@ -37,6 +37,7 @@ Desarrollar un compilador capaz de:
 project/
 │
 ├── compilador.py          # Analizador léxico
+├── programa.txt   #Pruebas
 └── README.md
 ```
 

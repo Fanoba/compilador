@@ -5,3 +5,6 @@ __pycache__/
 # Archivos de transiciones generados automáticamente por PLY
 parsetab.py
 parser.out
+
+# Virtual environments
+.venv/

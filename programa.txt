@@ -1,0 +1,23 @@
+program pruebaFinal ;
+
+var 
+a, n : int ;
+i, g, vart : float ;
+
+int prom(x : int, y : int) [
+    {
+        return (x + y) / 2 ;
+    }
+] ;
+
+main {
+    a = 5 ;
+    n = 4 ;
+    
+    # Declaraciones multiples funcionando + Operador unario en funcion
+    print("xsxsxs", (5 + 56 * 5 * -prom(a, n)) ) ;
+    
+    # Tambien funciona el unario directo en variables
+    vart = -i ;
+}
+end
