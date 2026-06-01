@@ -1,0 +1,34 @@
+program llamadasExito;
+
+var
+total, x : int;
+promedio : float;
+
+int sumar(a : int, b : int) [
+    {
+        return a + b;
+    }
+];
+
+float dividir(a : int, b : int) [
+    {
+        return a + b;
+    }
+];
+
+void saludar(nombre : string) [
+    {
+        print("Hola", nombre);
+        return;
+    }
+];
+
+main {
+    x = 7;
+    total = sumar(x, 13);
+    promedio = dividir(total, 2);
+    saludar("Mundo");
+    print("Total:", total);
+    print("Promedio:", promedio);
+}
+end

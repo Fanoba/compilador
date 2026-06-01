@@ -1,0 +1,24 @@
+program scopesError;
+
+var
+a, a : int;
+
+int suma(x : int, x : int) [
+    {
+        return x + x;
+    }
+];
+
+int suma(z : int) [
+    {
+        return z;
+    }
+];
+
+main {
+    a = 5;
+    b = a + 1;
+    a = suma(local_x);
+    print(temp);
+}
+end

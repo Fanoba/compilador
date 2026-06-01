@@ -1,0 +1,19 @@
+program tiposExito;
+
+var
+entero, contador : int;
+decimal, resultado : float;
+mensaje : string;
+
+main {
+    entero = 5;
+    contador = entero * 2;
+    decimal = 3.14;
+    resultado = decimal + entero;
+    mensaje = "Compilador Little Duck";
+    print("Entero:", entero);
+    print("Decimal:", decimal);
+    print("Suma mixta:", resultado);
+    print(mensaje);
+}
+end

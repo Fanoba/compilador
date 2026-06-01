@@ -1,0 +1,14 @@
+program tiposError;
+
+var
+entero : int;
+decimal : float;
+mensaje : string;
+
+main {
+    entero = 3.14;
+    mensaje = 100;
+    decimal = entero + mensaje;
+    entero = mensaje * 2;
+}
+end

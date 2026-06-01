@@ -11,3 +11,12 @@ parser.out
 
 # Salida generada por el compilador
 prueba-ir.txt
+
+# Reporte generado (se reproduce con generar_reporte.py)
+Reporte_Entrega2.docx
+
+# Archivos lock temporales de Word/Pages
+~$*
+
+# Salidas capturadas de los casos de prueba (output, no fuente)
+casos_prueba/salidas/

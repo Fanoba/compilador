@@ -1,0 +1,21 @@
+program flujoError;
+
+var
+a, b : int;
+texto : string;
+
+main {
+    a = 5;
+    texto = "hola";
+    if (a) {
+        a = 1;
+    };
+    do {
+        a = a + 1;
+    } while (texto);
+    if (a + b) {
+        b = 2;
+    };
+    break;
+}
+end

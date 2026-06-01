@@ -1,0 +1,24 @@
+program flujoExito;
+
+var
+i, suma, limite : int;
+
+main {
+    suma = 0;
+    i = 1;
+    limite = 5;
+    do {
+        suma = suma + i;
+        if (i == 3) {
+            print("Llegamos a 3, saltamos uno");
+            i = i + 1;
+        } else {
+            i = i + 1;
+        };
+        if (suma > 100) {
+            break;
+        };
+    } while (i <= limite);
+    print("Suma final:", suma);
+}
+end

@@ -1,0 +1,30 @@
+program scopesExito;
+
+var
+global1, global2 : int;
+piVal : float;
+
+int duplicar(valor : int) [
+    var temporal : int;
+    {
+        temporal = valor * 2;
+        return temporal;
+    }
+];
+
+float circulo(radio : float) [
+    var area : float;
+    {
+        area = radio * radio * piVal;
+        return area;
+    }
+];
+
+main {
+    global1 = 10;
+    global2 = duplicar(global1);
+    piVal = 3.1416;
+    print("Doble:", global2);
+    print("Area:", circulo(2.0));
+}
+end
