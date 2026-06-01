@@ -8,3 +8,6 @@ parser.out
 
 # Virtual environments
 .venv/
+
+# Salida generada por el compilador
+prueba-ir.txt
