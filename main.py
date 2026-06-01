@@ -1,9 +1,7 @@
 import ply.lex as lex
 import ply.yacc as yacc
 
-# =============================================================================
-# 0. ESTRUCTURAS DE DATOS SEMÁNTICAS
-# =============================================================================
+# --- 0. ESTRUCTURAS DE DATOS SEMANTICAS ---
 
 # --- Tipos de datos ---
 T_INT = 'int'
@@ -14,7 +12,7 @@ T_VOID = 'void'
 T_ERROR = 'error'
 
 
-# --- Cuádruplo ---
+# --- Cuadruplo ---
 class Quadruple:
     def __init__(self, op, arg1, arg2, res, type_res=None):
         self.op = op
@@ -27,7 +25,7 @@ class Quadruple:
         return (self.op, self.arg1, self.arg2, self.res, self.type_res)
 
 
-# --- Cubo Semántico ---
+# --- Cubo Semantico ---
 class SemanticCube:
     def __init__(self):
         self.cube = {}
@@ -51,7 +49,7 @@ class SemanticCube:
         for op in rel_eq:
             self.cube[(op, T_STRING, T_STRING)] = T_BOOL
 
-        # Asignación: usa misma matriz, validamos compatibilidad
+        # Asignacion: usa misma matriz, validamos compatibilidad
         self.cube[('=', T_INT, T_INT)] = T_INT
         self.cube[('=', T_FLOAT, T_FLOAT)] = T_FLOAT
         self.cube[('=', T_FLOAT, T_INT)] = T_FLOAT
@@ -104,7 +102,7 @@ class FunctionDirectory:
         return name in self.funcs
 
 
-# --- Manager Semántico (estado central) ---
+# --- Manager Semantico (estado central) ---
 class SemanticManager:
     def __init__(self):
         self.func_dir = FunctionDirectory()
@@ -119,9 +117,9 @@ class SemanticManager:
         self.current_scope = 'global'
         self.current_func = None
         self.has_errors = False
-        # Para validar parámetros en llamadas
-        self.call_stack = []     # nombre de función siendo llamada
-        self.arg_counter = []    # índice de argumento actual en cada llamada
+        # Para validar parametros en llamadas
+        self.call_stack = []     # nombre de funcion siendo llamada
+        self.arg_counter = []    # indice de argumento actual en cada llamada
 
     # --- Helpers de error ---
     def error(self, msg):
@@ -135,7 +133,7 @@ class SemanticManager:
 
     def emit(self, op, arg1, arg2, res, type_res='-'):
         self.quads.append(Quadruple(op, arg1, arg2, res, type_res))
-        return len(self.quads)  # índice 1-based del quad recién emitido
+        return len(self.quads)  # indice 1-based del quad recien emitido
 
     def fill(self, idx, value):
         # idx es 1-based; convertimos a 0-based al indexar
@@ -167,9 +165,7 @@ class SemanticManager:
 # Instancia global del manager
 sm = SemanticManager()
 
-# =============================================================================
-# 1. PALABRAS RESERVADAS Y TOKENS
-# =============================================================================
+# --- 1. PALABRAS RESERVADAS Y TOKENS ---
 reserved = {
     'program': 'PROGRAM', 'main': 'MAIN', 'var': 'VAR', 'end': 'END',
     'int': 'INT', 'float': 'FLOAT', 'string': 'STRING', 'void': 'VOID',
@@ -251,9 +247,7 @@ def t_error(t):
 
 lexer = lex.lex()
 
-# =============================================================================
-# 2. MANEJO DE ERRORES AVANZADO CORREGIDO
-# =============================================================================
+# --- 2. MANEJO DE ERRORES AVANZADO CORREGIDO ---
 texto_actual = ""
 hubo_errores = False  # VARIABLE AGREGADA PARA CONTROLAR EL MENSAJE FALSO
 
@@ -287,17 +281,15 @@ def p_error(p):
         print("  [Error Sintactico] Error fatal: Fin de archivo inesperado (EOF).")
 
 
-# =============================================================================
-# 3. GRAMÁTICA LR COMPLETA
-# =============================================================================
+# --- 3. GRAMATICA LR COMPLETA ---
 
 def p_programa(p):
     '''programa : PROGRAM ID np_prog_start SEMICOLON vars_opcional funcs_opcional MAIN np_main_start body END'''
     global hubo_errores
     if not hubo_errores and not sm.has_errors:
-        print("\n  [Sintaxis] ¡Programa estructurado correctamente siguiendo el diagrama principal!")
+        print("\n  [Sintaxis] Programa estructurado correctamente siguiendo el diagrama principal!")
     elif hubo_errores:
-        print("\n  [Sintaxis] El análisis terminó, pero se encontraron errores sintácticos. Revisa los mensajes arriba.")
+        print("\n  [Sintaxis] El analisis termino, pero se encontraron errores sintacticos. Revisa los mensajes arriba.")
     # Quad final
     sm.emit('END', None, None, None, '-')
 
@@ -313,7 +305,7 @@ def p_np_prog_start(p):
 
 def p_np_main_start(p):
     '''np_main_start :'''
-    # El próximo quad será el primero de main
+    # El proximo quad sera el primero de main
     sm.fill(sm.main_jump_idx, len(sm.quads) + 1)
     sm.current_scope = 'global'
 
@@ -323,7 +315,7 @@ def p_vars_opcional_data(p):   '''vars_opcional : vars'''
 def p_funcs_opcional_vacio(p): '''funcs_opcional : '''
 def p_funcs_opcional_data(p):  '''funcs_opcional : funcs'''
 
-# --- CORRECCIÓN: SOPORTE PARA MÚLTIPLES DECLARACIONES EN UN BLOQUE VAR ---
+# --- CORRECCION: SOPORTE PARA MULTIPLES DECLARACIONES EN UN BLOQUE VAR ---
 def p_vars(p):
     '''vars : VAR lista_declaraciones'''
     pass
@@ -388,9 +380,9 @@ def p_np_func_start(p):
     return_type = p[-2]
     name = p[-1]
     if not sm.func_dir.add(name, return_type):
-        sm.error(f"Función '{name}' ya declarada")
+        sm.error(f"Funcion '{name}' ya declarada")
     sm.current_scope = name
-    # Si tiene retorno no-void, registrar una variable global con el nombre de la función
+    # Si tiene retorno no-void, registrar una variable global con el nombre de la funcion
     if return_type != T_VOID:
         glob = sm.func_dir.get('global')
         if glob and not glob['var_table'].exists(name):
@@ -409,7 +401,7 @@ def p_np_func_end(p):
     # Verificar que las funciones no-void hayan retornado al menos un valor.
     f = sm.func_dir.get(sm.current_scope)
     if f and f['return_type'] != T_VOID and not _function_has_return(f):
-        sm.error(f"Función '{sm.current_scope}' tipo '{f['return_type']}' no tiene 'return' con valor")
+        sm.error(f"Funcion '{sm.current_scope}' tipo '{f['return_type']}' no tiene 'return' con valor")
     sm.emit('ENDFUNC', None, None, None, '-')
     sm.current_scope = 'global'
 
@@ -436,13 +428,13 @@ def p_lista_parametros_multiple(p):
 
 def _register_param(name, ptype):
     if ptype == T_VOID:
-        sm.error(f"El parámetro '{name}' no puede ser de tipo 'void'")
+        sm.error(f"El parametro '{name}' no puede ser de tipo 'void'")
         return
     func_info = sm.func_dir.get(sm.current_scope)
     if func_info is None:
         return
     if not func_info['var_table'].add(name, ptype):
-        sm.error(f"Parámetro '{name}' duplicado en función '{sm.current_scope}'")
+        sm.error(f"Parametro '{name}' duplicado en funcion '{sm.current_scope}'")
         return
     func_info['params'].append((name, ptype))
     func_info['num_params'] += 1
@@ -479,7 +471,7 @@ def p_assign(p):
     tval = sm.type_stack.pop()
     var, _ = sm.lookup_var(p[1])
     if var is None:
-        sm.error(f"Variable '{p[1]}' no declarada (en asignación)")
+        sm.error(f"Variable '{p[1]}' no declarada (en asignacion)")
         return
     res_type = sm.cube.query('=', var['type'], tval)
     if res_type == T_ERROR:
@@ -513,7 +505,7 @@ def p_cycle(p):
 
 def p_np_cycle_start(p):
     '''np_cycle_start :'''
-    # Marca inicio del ciclo (próximo quad). Usamos 1-based.
+    # Marca inicio del ciclo (proximo quad). Usamos 1-based.
     sm.jump_stack.append(len(sm.quads) + 1)
     sm.break_stack.append([])
 
@@ -526,10 +518,10 @@ def p_np_cycle_end(p):
     t = sm.type_stack.pop()
     val = sm.operand_stack.pop()
     if t != T_BOOL:
-        sm.error(f"La condición del while debe ser booleana, se recibió '{t}'")
+        sm.error(f"La condicion del while debe ser booleana, se recibio '{t}'")
     start = sm.jump_stack.pop()
     sm.emit('GOTOT', val, None, start, '-')
-    # Resolver los breaks: deben saltar al quad que viene después del GOTOT
+    # Resolver los breaks: deben saltar al quad que viene despues del GOTOT
     target = len(sm.quads) + 1
     for b_idx in sm.break_stack.pop():
         sm.fill(b_idx, target)
@@ -545,15 +537,15 @@ def p_condition_if_else(p):
 
 def p_np_if_cond(p):
     '''np_if_cond :'''
-    # Después de evaluar la condición: validar bool y emitir GOTOF pendiente.
+    # Despues de evaluar la condicion: validar bool y emitir GOTOF pendiente.
     if not sm.type_stack:
         return
     t = sm.type_stack.pop()
     val = sm.operand_stack.pop()
     if t != T_BOOL:
-        sm.error(f"La condición del if debe ser booleana, se recibió '{t}'")
+        sm.error(f"La condicion del if debe ser booleana, se recibio '{t}'")
     sm.emit('GOTOF', val, None, None, '-')
-    sm.jump_stack.append(len(sm.quads))  # índice 1-based del GOTOF recién emitido
+    sm.jump_stack.append(len(sm.quads))  # indice 1-based del GOTOF recien emitido
 
 def p_np_if_else(p):
     '''np_if_else :'''
@@ -567,7 +559,7 @@ def p_np_if_else(p):
 
 def p_np_if_end(p):
     '''np_if_end :'''
-    # Rellena el último salto pendiente con la posición siguiente.
+    # Rellena el ultimo salto pendiente con la posicion siguiente.
     if sm.jump_stack:
         idx = sm.jump_stack.pop()
         sm.fill(idx, len(sm.quads) + 1)
@@ -581,7 +573,7 @@ def p_np_call_start(p):
     '''np_call_start :'''
     name = p[-1]
     if not sm.func_dir.exists(name):
-        sm.error(f"Función '{name}' no declarada (en llamada)")
+        sm.error(f"Funcion '{name}' no declarada (en llamada)")
         sm.call_stack.append(None)
         sm.arg_counter.append(0)
         return
@@ -594,7 +586,7 @@ def _call_end(name, as_expression):
     arg_count = sm.arg_counter.pop() if sm.arg_counter else 0
     func_in_stack = sm.call_stack.pop() if sm.call_stack else None
     if func_in_stack is None:
-        # Función no existía; empujar placeholder para no romper expresión
+        # Funcion no existia; empujar placeholder para no romper expresion
         if as_expression:
             sm.operand_stack.append('_err_')
             sm.type_stack.append(T_ERROR)
@@ -602,16 +594,16 @@ def _call_end(name, as_expression):
     f = sm.func_dir.get(name)
     expected = len(f['params'])
     if arg_count != expected:
-        sm.error(f"Función '{name}' espera {expected} argumento(s), recibió {arg_count}")
+        sm.error(f"Funcion '{name}' espera {expected} argumento(s), recibio {arg_count}")
     target = f.get('quad_start') if f.get('quad_start') is not None else name
     sm.emit('GOSUB', name, None, target, '-')
     if as_expression:
         if f['return_type'] == T_VOID:
-            sm.error(f"Función '{name}' es void y no puede usarse en expresión")
+            sm.error(f"Funcion '{name}' es void y no puede usarse en expresion")
             sm.operand_stack.append('_err_')
             sm.type_stack.append(T_ERROR)
             return
-        # El valor de retorno está en la variable global con el mismo nombre de la función
+        # El valor de retorno esta en la variable global con el mismo nombre de la funcion
         temp = sm.new_temp()
         sm.emit('=', name, None, temp, f['return_type'])
         sm.operand_stack.append(temp)
@@ -642,7 +634,7 @@ def p_np_call_arg(p):
             if ok == T_ERROR:
                 sm.error(
                     f"Argumento {idx+1} de '{func_name}': tipo '{tval}' "
-                    f"incompatible con parámetro '{pname}' ({ptype})"
+                    f"incompatible con parametro '{pname}' ({ptype})"
                 )
         sm.emit('PARAM', val, None, f"par{idx+1}", '-')
     if sm.arg_counter:
@@ -655,17 +647,17 @@ def p_return_stmt_val(p):
     val = sm.operand_stack.pop()
     tval = sm.type_stack.pop()
     if sm.current_scope == 'global':
-        sm.error("'return' fuera de una función")
+        sm.error("'return' fuera de una funcion")
         return
     f = sm.func_dir.get(sm.current_scope)
     if f['return_type'] == T_VOID:
-        sm.error(f"Función '{sm.current_scope}' es void y no debe retornar un valor")
+        sm.error(f"Funcion '{sm.current_scope}' es void y no debe retornar un valor")
         return
     res = sm.cube.query('=', f['return_type'], tval)
     if res == T_ERROR:
         sm.error(
             f"Tipo de retorno '{tval}' incompatible con tipo declarado "
-            f"'{f['return_type']}' en función '{sm.current_scope}'"
+            f"'{f['return_type']}' en funcion '{sm.current_scope}'"
         )
         return
     sm.emit('=', val, None, sm.current_scope, f['return_type'])
@@ -675,12 +667,12 @@ def p_return_stmt_val(p):
 def p_return_stmt_empty(p):
     '''return_stmt : RETURN SEMICOLON'''
     if sm.current_scope == 'global':
-        sm.error("'return' fuera de una función")
+        sm.error("'return' fuera de una funcion")
         return
     f = sm.func_dir.get(sm.current_scope)
     if f['return_type'] != T_VOID:
         sm.error(
-            f"Función '{sm.current_scope}' tipo '{f['return_type']}' "
+            f"Funcion '{sm.current_scope}' tipo '{f['return_type']}' "
             f"debe retornar un valor"
         )
         return
@@ -781,7 +773,7 @@ def p_factor_id(p):
     '''factor : ID'''
     var, _ = sm.lookup_var(p[1])
     if var is None:
-        sm.error(f"Variable '{p[1]}' no declarada (en expresión)")
+        sm.error(f"Variable '{p[1]}' no declarada (en expresion)")
         sm.operand_stack.append(p[1])
         sm.type_stack.append(T_ERROR)
     else:
@@ -810,9 +802,7 @@ def p_base_cte_str(p):
 
 parser = yacc.yacc()
 
-# =============================================================================
-# 4. EJECUCIÓN DESDE EL ARCHIVO
-# =============================================================================
+# --- 4. EJECUCION DESDE EL ARCHIVO ---
 
 def _format_cell(v):
     return '_' if v is None else str(v)
@@ -836,9 +826,8 @@ def format_quads(quads):
 
 def format_symbol_table(func_dir):
     lines = []
-    lines.append("=" * 70)
-    lines.append("TABLA DE SÍMBOLOS")
-    lines.append("=" * 70)
+    lines.append("TABLA DE SIMBOLOS")
+    lines.append("-" * 17)
 
     glob = func_dir.get('global')
     if glob:
@@ -853,7 +842,7 @@ def format_symbol_table(func_dir):
     if not user_funcs:
         lines.append("  (sin funciones de usuario)")
     for fname, finfo in user_funcs.items():
-        params_str = ", ".join(f"{n}:{t}" for n, t in finfo['params']) or "(sin parámetros)"
+        params_str = ", ".join(f"{n}:{t}" for n, t in finfo['params']) or "(sin parametros)"
         lines.append(
             f"  - {fname}({params_str}) -> {finfo['return_type']}  "
             f"[inicio quad: {finfo.get('quad_start', '-')}, "
@@ -868,9 +857,7 @@ def format_symbol_table(func_dir):
 
 
 if __name__ == '__main__':
-    print("=" * 70)
     print("COMPILADOR LITTLE DUCK - ENTREGA 2")
-    print("=" * 70)
 
     input = open("prueba.txt").read()
     texto_actual = input
@@ -883,11 +870,10 @@ if __name__ == '__main__':
     parser.parse(texto_actual, lexer=lexer)
 
     if hubo_errores or sm.has_errors:
-        print("\n[!] Hubo errores. No se generó el archivo de salida.")
+        print("\n[!] Hubo errores. No se genero el archivo de salida.")
     else:
-        print("\n" + "=" * 70)
-        print("REPRESENTACIÓN INTERMEDIA (CUÁDRUPLOS)")
-        print("=" * 70)
+        print("\nREPRESENTACION INTERMEDIA (CUADRUPLOS)")
+        print("-" * 38)
         quads_str = format_quads(sm.quads)
         print(quads_str)
 
@@ -900,4 +886,4 @@ if __name__ == '__main__':
             fout.write("\n\n")
             fout.write(symbols_str)
             fout.write("\n")
-        print("\n[OK] Representación intermedia escrita en 'prueba-ir.txt'")
+        print("\n[OK] Representacion intermedia escrita en 'prueba-ir.txt'")
