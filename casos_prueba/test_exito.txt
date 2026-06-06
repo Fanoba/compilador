@@ -1,0 +1,19 @@
+program PruebaExitosa ;
+
+var
+  xGlobal : int ;
+
+int sumar(a : int, b : int) [
+  var
+    resultadoLocal : int ;
+  {
+    resultadoLocal = a + b ;
+    return resultadoLocal ;
+  }
+] ;
+
+main {
+  xGlobal = sumar(10, 5) ;
+  print("El resultado es", xGlobal) ;
+}
+end

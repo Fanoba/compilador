@@ -1,0 +1,17 @@
+program PruebaScopes ;
+
+var
+  resultadoGlobal : int ;
+
+void intentarModificar() [
+  {
+    # Esto debe detonar un error porque resultadoGlobal no es local
+    resultadoGlobal = 500 ;
+  }
+] ;
+
+main {
+  resultadoGlobal = 10 ;
+  intentarModificar() ;
+}
+end

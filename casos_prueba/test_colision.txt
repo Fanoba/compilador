@@ -1,0 +1,24 @@
+program REPETIDO ;
+
+var
+  REPETIDO : int ; # ERROR 1: Variable se llama igual que el programa
+  miVariable : float ;
+
+# ERROR 2: La funcion se llama igual que una variable global
+float miVariable(x : int) [
+  {
+    return 1.5 ;
+  }
+] ;
+
+# ERROR 3: El parametro se llama igual que la funcion
+int calcular(calcular : int) [
+  {
+    return calcular ;
+  }
+] ;
+
+main {
+  print("Esta prueba va a fallar multiples veces") ;
+}
+end
