@@ -950,16 +950,16 @@ def format_symbol_table(func_dir):
         for name, info in finfo['var_table'].vars.items():
             lines.append(f"        - {name}: {info['type']}")
     return "\n".join(lines)
-
-
 if __name__ == '__main__':
     print("COMPILADOR LITTLE DUCK - ENTREGA 2")
-    nombre_archivo = sys.argv[1] if len(sys.argv) > 1 else "prueba.txt"
-    input_data = open(nombre_archivo).read()
-    input = open("prueba.txt").read()
-    texto_actual = input
 
-    print("[OK] Leyendo contenido de 'prueba.txt'...")
+    # 1. Leemos el argumento de la terminal
+    nombre_archivo = sys.argv[1] if len(sys.argv) > 1 else "prueba.txt"
+
+    # 2. ¡EL ARREGLO ESTÁ AQUÍ! Pasamos la variable 'nombre_archivo' en lugar de un texto fijo
+    texto_actual = open(nombre_archivo).read()
+
+    print(f"[OK] Leyendo contenido de '{nombre_archivo}'...")
     print("-" * 40)
     print(texto_actual)
     print("-" * 40)
