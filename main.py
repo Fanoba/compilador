@@ -194,7 +194,7 @@ t_OPEN_BRA = r'\['
 t_CLOSE_BRA = r'\]'
 t_OPEN_KEY = r'\{'
 t_CLOSE_KEY = r'\}'
-t_ignore = ' \t'
+t_ignore = ' \t\r'
 
 
 def t_newline(t):

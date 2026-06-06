@@ -12,7 +12,6 @@ pruebas = [
     ], True)
 ]
 
-
 def correr_pruebas():
     exito_total = True
     print("=== INICIANDO PRUEBAS AUTOMATICAS ===")
@@ -44,15 +43,18 @@ def correr_pruebas():
             print("  [OK] Prueba superada.")
         else:
             exito_total = False
+            # ¡NUEVO!: Imprimir exactamente qué vio el compilador para poder depurar
+            print("\n--- 🔍 DETALLE DEL ERROR (SALIDA DEL COMPILADOR) ---")
+            print(salida)
+            print("--------------------------------------------------\n")
 
     print("\n=== RESULTADO FINAL ===")
     if exito_total:
         print("Todas las pruebas pasaron. El código es seguro.")
-        sys.exit(0)  # Le dice a GitHub Actions que esta bien
+        sys.exit(0)
     else:
         print("Algunas pruebas fallaron. Revisa los cambios.")
-        sys.exit(1)  # Le dice a GitHub Actions que ponga una X roja
-
+        sys.exit(1)
 
 if __name__ == '__main__':
     correr_pruebas()
