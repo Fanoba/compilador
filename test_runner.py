@@ -20,7 +20,7 @@ def correr_pruebas():
     for archivo, textos_esperados, debe_fallar in pruebas:
         print(f"\nProbando: {archivo} ...")
         # Ejecutamos tu compilador mandándole el archivo
-        resultado = subprocess.run(['python', 'compilador.py', archivo], capture_output=True, text=True)
+        resultado = subprocess.run(['python', 'main.py', archivo], capture_output=True, text=True)
         salida = resultado.stdout + resultado.stderr
 
         paso_prueba = True

@@ -954,7 +954,8 @@ def format_symbol_table(func_dir):
 
 if __name__ == '__main__':
     print("COMPILADOR LITTLE DUCK - ENTREGA 2")
-
+    nombre_archivo = sys.argv[1] if len(sys.argv) > 1 else "prueba.txt"
+    input_data = open(nombre_archivo).read()
     input = open("prueba.txt").read()
     texto_actual = input
 
