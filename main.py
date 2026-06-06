@@ -1,6 +1,6 @@
 import ply.lex as lex
 import ply.yacc as yacc
-
+import sys
 # --- 0. ESTRUCTURAS DE DATOS SEMANTICAS ---
 
 # --- Tipos de datos ---
