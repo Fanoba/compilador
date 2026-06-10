@@ -1,0 +1,17 @@
+program runtime_ok ;
+var n : int ;
+int factorial ( x : int ) [
+    var r : int ;
+    {
+        if ( x > 1 ) {
+            r = factorial( x - 1 ) ;
+            return x * r ;
+        } ;
+        return 1 ;
+    }
+] ;
+main {
+    n = 5 ;
+    print("factorial de 5 = ", factorial( n )) ;
+}
+end

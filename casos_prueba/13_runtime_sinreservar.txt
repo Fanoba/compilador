@@ -1,0 +1,8 @@
+program sin_reservar ;
+var a, b : int ;
+main {
+    a = 5 ;
+    b = a + b ;
+    print(b) ;
+}
+end

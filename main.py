@@ -20,6 +20,10 @@ class Quadruple:
         self.arg2 = arg2
         self.res = res
         self.type_res = type_res if type_res is not None else '-'
+        # Nombres legibles (se llenan en emit, para salida_debug.txt) (E3)
+        self.arg1_name = arg1
+        self.arg2_name = arg2
+        self.res_name = res
 
     def as_tuple(self):
         return (self.op, self.arg1, self.arg2, self.res, self.type_res)
@@ -57,15 +61,76 @@ class SemanticCube:
         return self.cube.get((op, t1, t2), T_ERROR)
 
 
+# --- Administrador de Memoria Virtual (ENTREGA 3) ---
+# Convencion vista en clase: cada region/tipo arranca en una direccion base.
+# Global y constantes son memoria global unica. Locales y temporales se cuentan
+# POR FUNCION, porque en la VM cada llamada tendra su propio frame.
+class MemoryManager:
+    BASE = {
+        ('global', 'int'): 1000, ('global', 'float'): 2000,
+        ('global', 'string'): 3000, ('global', 'void'): 4000,
+        ('local', 'int'): 7000, ('local', 'float'): 8000, ('local', 'string'): 9000,
+        ('temp', 'int'): 12000, ('temp', 'float'): 13000, ('temp', 'bool'): 14000,
+        ('const', 'int'): 17000, ('const', 'float'): 18000, ('const', 'string'): 19000,
+    }
+    LIMIT = 1000  # casillas por bloque de tipo
+
+    def __init__(self):
+        self.global_count = {'int': 0, 'float': 0, 'string': 0, 'void': 0}
+        self.const_count = {'int': 0, 'float': 0, 'string': 0}
+        self.const_table = {}  # (valor, tipo) -> direccion
+        self.local_count = {'int': 0, 'float': 0, 'string': 0}
+        self.temp_count = {'int': 0, 'float': 0, 'bool': 0}
+
+    def _alloc(self, seg, t, counter):
+        offset = counter[t]
+        if offset >= self.LIMIT:
+            raise MemoryError(f"Memoria virtual agotada en region {seg}_{t}")
+        counter[t] += 1
+        return self.BASE[(seg, t)] + offset
+
+    def new_global(self, t):
+        return self._alloc('global', t, self.global_count)
+
+    def new_local(self, t):
+        return self._alloc('local', t, self.local_count)
+
+    def new_temp(self, t):
+        return self._alloc('temp', t, self.temp_count)
+
+    def new_const(self, value, t):
+        key = (value, t)
+        if key in self.const_table:
+            return self.const_table[key]
+        addr = self._alloc('const', t, self.const_count)
+        self.const_table[key] = addr
+        return addr
+
+    def reset_frame(self):
+        # nuevo frame (funcion o main): locales y temporales arrancan limpias
+        self.local_count = {'int': 0, 'float': 0, 'string': 0}
+        self.temp_count = {'int': 0, 'float': 0, 'bool': 0}
+
+    def snapshot_frame(self):
+        return {
+            'local_int': self.local_count['int'],
+            'local_float': self.local_count['float'],
+            'local_str': self.local_count['string'],
+            'temp_int': self.temp_count['int'],
+            'temp_float': self.temp_count['float'],
+            'temp_bool': self.temp_count['bool'],
+        }
+
+
 # --- Tabla de variables ---
 class VariableTable:
     def __init__(self):
         self.vars = {}
 
-    def add(self, name, var_type):
+    def add(self, name, var_type, dir_=None):
         if name in self.vars:
             return False
-        self.vars[name] = {'type': var_type}
+        self.vars[name] = {'type': var_type, 'dir': dir_}  # 'dir' = direccion virtual (E3)
         return True
 
     def get(self, name):
@@ -90,6 +155,8 @@ class FunctionDirectory:
             'num_params': 0,
             'num_vars': 0,
             'quad_start': None,
+            'func_addr': None,   # direccion identificadora / ranura de retorno (E3)
+            'mem': None,         # snapshot de memoria del frame (E3)
         }
         return True
 
@@ -106,33 +173,51 @@ class SemanticManager:
         self.program_name = None  # Para validar colision con el nombre del programa
         self.func_dir = FunctionDirectory()
         self.cube = SemanticCube()
+        self.mem = MemoryManager()       # memoria virtual (E3)
         self.quads = []
-        self.operand_stack = []
+        self.operand_stack = []          # ahora carga DIRECCIONES (E3)
         self.operator_stack = []
         self.type_stack = []
         self.jump_stack = []
         self.break_stack = []
         self.temp_counter = 0
+        self.temp_seq = 0                # secuencia para nombres legibles de temporales (E3)
         self.current_scope = 'global'
         self.current_func = None
         self.has_errors = False
         self.call_stack = []
         self.arg_counter = []
+        self.names = {}                  # direccion -> nombre legible, para el debug (E3)
+        self.main_jump_idx = None
+        self.main_frame = None           # memoria del frame del main (E3)
 
     def error(self, msg):
         self.has_errors = True
         print(f"  [Error Semantico] {msg}")
 
-    def new_temp(self):
-        self.temp_counter += 1
-        return f"t{self.temp_counter}"
+    def _disp(self, v):
+        # Nombre legible de una direccion/valor (para el archivo debug) (E3)
+        return self.names.get(v, v)
+
+    def new_temp(self, res_type):
+        # Asigna una direccion temporal segun el tipo y guarda su nombre legible (E3)
+        addr = self.mem.new_temp(res_type)
+        self.temp_seq += 1
+        self.names[addr] = f"t{self.temp_seq}"
+        return addr
 
     def emit(self, op, arg1, arg2, res, type_res='-'):
-        self.quads.append(Quadruple(op, arg1, arg2, res, type_res))
+        q = Quadruple(op, arg1, arg2, res, type_res)
+        # captura los nombres legibles al emitir (para salida_debug.txt) (E3)
+        q.arg1_name = self._disp(arg1)
+        q.arg2_name = self._disp(arg2)
+        q.res_name = self._disp(res)
+        self.quads.append(q)
         return len(self.quads)
 
     def fill(self, idx, value):
         self.quads[idx - 1].res = value
+        self.quads[idx - 1].res_name = value  # (E3)
 
     def declare_var(self, name, var_type):
         # 1. Validar que no se llame igual que el programa
@@ -145,10 +230,13 @@ class SemanticManager:
         if func_info is None:
             self.error(f"Scope '{scope}' no existe al declarar '{name}'")
             return
-        if not func_info['var_table'].add(name, var_type):
+        # Direccion virtual segun el scope: global -> region global, funcion -> region local (E3)
+        addr = self.mem.new_global(var_type) if scope == 'global' else self.mem.new_local(var_type)
+        if not func_info['var_table'].add(name, var_type, addr):
             self.error(f"Variable '{name}' ya declarada en scope '{scope}'")
         else:
             func_info['num_vars'] += 1
+            self.names[addr] = name  # (E3)
 
     def lookup_var(self, name):
         # Busca unicamente en el scope local actual (si es main, el scope es 'global')
@@ -293,12 +381,8 @@ def p_error(p):
 
 def p_programa(p):
     '''programa : PROGRAM ID np_prog_start SEMICOLON vars_opcional funcs_opcional MAIN np_main_start body END'''
-    global hubo_errores
-    if not hubo_errores and not sm.has_errors:
-        print("\n  [Sintaxis] Programa estructurado correctamente!")
-    elif hubo_errores:
-        print("\n  [Sintaxis] El analisis termino, pero se encontraron errores. Revisa los mensajes arriba.")
-    sm.emit('END', None, None, None, '-')
+    sm.emit('end', None, None, None, '-')
+    sm.main_frame = sm.mem.snapshot_frame()  # memoria (temporales) del frame del main (E3)
 
 
 def p_np_prog_start(p):
@@ -306,14 +390,15 @@ def p_np_prog_start(p):
     sm.program_name = p[-1]  # Guardar ID del programa para evitar colisiones
     sm.func_dir.add('global', T_VOID)
     sm.current_scope = 'global'
-    sm.emit('GOTO', None, None, None, '-')
+    sm.emit('gotomain', None, None, None, '-')  # salto al main (E3)
     sm.main_jump_idx = len(sm.quads)
 
 
 def p_np_main_start(p):
     '''np_main_start :'''
-    sm.fill(sm.main_jump_idx, len(sm.quads) + 1)
     sm.current_scope = 'global'
+    sm.mem.reset_frame()  # el main es el frame base; sus temporales arrancan limpias (E3)
+    sm.fill(sm.main_jump_idx, len(sm.quads) + 1)
 
 
 def p_vars_opcional_vacio(p):  '''vars_opcional : '''
@@ -415,9 +500,19 @@ def p_np_func_start(p):
         sm.error(f"Funcion '{name}' ya declarada")
 
     sm.current_scope = name
-    if return_type != T_VOID:
+    sm.mem.reset_frame()  # nuevo frame: locales y temporales arrancan limpias (E3)
+
+    # Direccion identificadora de la funcion (y ranura de retorno si no es void) (E3)
+    f = sm.func_dir.get(name)
+    if return_type == T_VOID:
+        func_addr = sm.mem.new_global(T_VOID)
+    else:
+        func_addr = sm.mem.new_global(return_type)
         if glob and not glob['var_table'].exists(name):
-            glob['var_table'].add(name, return_type)
+            glob['var_table'].add(name, return_type, func_addr)
+    if f:
+        f['func_addr'] = func_addr
+    sm.names[func_addr] = name
 
 
 def p_np_func_body(p):
@@ -432,14 +527,16 @@ def p_np_func_end(p):
     f = sm.func_dir.get(sm.current_scope)
     if f and f['return_type'] != T_VOID and not _function_has_return(f):
         sm.error(f"Funcion '{sm.current_scope}' tipo '{f['return_type']}' no tiene 'return' con valor")
-    sm.emit('ENDFUNC', None, None, None, '-')
+    sm.emit('endfun', None, None, None, '-')
+    if f:
+        f['mem'] = sm.mem.snapshot_frame()  # memoria requerida por el frame de la funcion (E3)
     sm.current_scope = 'global'
 
 
 def _function_has_return(f):
     start = f.get('quad_start', 1) - 1
     for q in sm.quads[start:]:
-        if q.op == 'RETURN':
+        if q.op == 'return':
             return True
     return False
 
@@ -472,12 +569,14 @@ def _register_param(name, ptype):
     func_info = sm.func_dir.get(sm.current_scope)
     if func_info is None:
         return
-    if not func_info['var_table'].add(name, ptype):
+    addr = sm.mem.new_local(ptype)  # parametro ocupa una direccion local (E3)
+    if not func_info['var_table'].add(name, ptype, addr):
         sm.error(f"Parametro '{name}' duplicado en funcion '{sm.current_scope}'")
         return
     func_info['params'].append((name, ptype))
     func_info['num_params'] += 1
     func_info['num_vars'] += 1
+    sm.names[addr] = name  # (E3)
 
 
 def p_body(p):
@@ -514,7 +613,7 @@ def p_statement_break(p):
     if not sm.break_stack:
         sm.error("'break' fuera de un ciclo")
         return
-    sm.emit('GOTO', None, None, None, '-')
+    sm.emit('goto', None, None, None, '-')
     sm.break_stack[-1].append(len(sm.quads))
 
 
@@ -535,12 +634,12 @@ def p_assign(p):
     if res_type == T_ERROR:
         sm.error(f"No se puede asignar '{tval}' a '{p[1]}' ({var['type']})")
         return
-    sm.emit('=', val, None, p[1], var['type'])
+    sm.emit('=', val, None, var['dir'], var['type'])  # destino = direccion de la variable (E3)
 
 
 def p_print(p):
     '''print : PRINT OPEN_PAR contenido_print CLOSE_PAR SEMICOLON'''
-    pass
+    sm.emit('newline', None, None, None, '-')  # newline implicito al final de cada print (E3)
 
 
 def p_contenido_print_single(p):
@@ -559,7 +658,7 @@ def p_np_print_item(p):
         return
     val = sm.operand_stack.pop()
     sm.type_stack.pop()
-    sm.emit('PRINT', None, None, val, '-')
+    sm.emit('print', val, None, None, '-')  # imprime el operando en arg1 (E3)
 
 
 def p_cycle(p):
@@ -584,7 +683,7 @@ def p_np_cycle_end(p):
     if t != T_BOOL:
         sm.error(f"La condicion del while debe ser booleana, se recibio '{t}'")
     start = sm.jump_stack.pop()
-    sm.emit('GOTOT', val, None, start, '-')
+    sm.emit('gotot', val, None, start, '-')
     target = len(sm.quads) + 1
     for b_idx in sm.break_stack.pop():
         sm.fill(b_idx, target)
@@ -608,13 +707,13 @@ def p_np_if_cond(p):
     val = sm.operand_stack.pop()
     if t != T_BOOL:
         sm.error(f"La condicion del if debe ser booleana, se recibio '{t}'")
-    sm.emit('GOTOF', val, None, None, '-')
+    sm.emit('gotof', val, None, None, '-')
     sm.jump_stack.append(len(sm.quads))
 
 
 def p_np_if_else(p):
     '''np_if_else :'''
-    sm.emit('GOTO', None, None, None, '-')
+    sm.emit('goto', None, None, None, '-')
     goto_idx = len(sm.quads)
     if sm.jump_stack:
         gotof_idx = sm.jump_stack.pop()
@@ -642,7 +741,8 @@ def p_np_call_start(p):
         sm.call_stack.append(None)
         sm.arg_counter.append(0)
         return
-    sm.emit('ERA', None, None, name, '-')
+    f = sm.func_dir.get(name)
+    sm.emit('sub', f['func_addr'], None, None, '-')  # señaliza inicio de llamada (E3)
     sm.call_stack.append(name)
     sm.arg_counter.append(0)
 
@@ -659,16 +759,17 @@ def _call_end(name, as_expression):
     expected = len(f['params'])
     if arg_count != expected:
         sm.error(f"Funcion '{name}' espera {expected} argumento(s), recibio {arg_count}")
-    target = f.get('quad_start') if f.get('quad_start') is not None else name
-    sm.emit('GOSUB', name, None, target, '-')
+    start_quad = f.get('quad_start') if f.get('quad_start') is not None else -1
+    sm.emit('gosub', f['func_addr'], None, start_quad, '-')  # llamada: salta al start_quad (E3)
     if as_expression:
         if f['return_type'] == T_VOID:
             sm.error(f"Funcion '{name}' es void y no puede usarse en expresion")
             sm.operand_stack.append('_err_')
             sm.type_stack.append(T_ERROR)
             return
-        temp = sm.new_temp()
-        sm.emit('=', name, None, temp, f['return_type'])
+        # copia el valor de retorno (ranura global de la funcion) a un temporal (E3)
+        temp = sm.new_temp(f['return_type'])
+        sm.emit('=', f['func_addr'], None, temp, f['return_type'])
         sm.operand_stack.append(temp)
         sm.type_stack.append(f['return_type'])
 
@@ -705,7 +806,9 @@ def p_np_call_arg(p):
                     f"Argumento {idx + 1} de '{func_name}': tipo '{tval}' "
                     f"incompatible con parametro '{pname}' ({ptype})"
                 )
-        sm.emit('PARAM', val, None, f"par{idx + 1}", '-')
+            # copia el argumento a la direccion del parametro en el frame de la funcion (E3)
+            param_addr = f['var_table'].get(pname)['dir']
+            sm.emit('param', val, None, param_addr, '-')
     if sm.arg_counter:
         sm.arg_counter[-1] += 1
 
@@ -729,10 +832,9 @@ def p_return_stmt_val(p):
             f"Tipo de retorno '{tval}' incompatible con tipo '{f['return_type']}'"
         )
         return
-    sm.emit('=', val, None, sm.current_scope, f['return_type'])
-
-    # CORRECCION: El valor ahora se inyecta explicitamente en el cuadruplo de RETURN
-    sm.emit('RETURN', val, None, None, f['return_type'])
+    # guarda el valor en la ranura de retorno (direccion global de la funcion) y regresa (E3)
+    sm.emit('=', val, None, f['func_addr'], f['return_type'])
+    sm.emit('return', None, None, None, '-')
 
 
 def p_return_stmt_empty(p):
@@ -746,7 +848,7 @@ def p_return_stmt_empty(p):
             f"Funcion '{sm.current_scope}' tipo '{f['return_type']}' debe retornar un valor"
         )
         return
-    sm.emit('RETURN', None, None, None, '-')
+    sm.emit('return', None, None, None, '-')
 
 
 # --- INFRAESTRUCTURA DE EXPRESIONES ---
@@ -821,7 +923,7 @@ def _reduce_binop(op):
         sm.operand_stack.append('_err_')
         sm.type_stack.append(T_ERROR)
         return
-    temp = sm.new_temp()
+    temp = sm.new_temp(res_type)  # temporal con direccion segun el tipo resultante (E3)
     sm.emit(op, left, right, temp, res_type)
     sm.operand_stack.append(temp)
     sm.type_stack.append(res_type)
@@ -849,8 +951,10 @@ def p_factor_unary_min(p):
         sm.operand_stack.append('_err_')
         sm.type_stack.append(T_ERROR)
         return
-    temp = sm.new_temp()
-    sm.emit('-', 0, val, temp, res_type)
+    zero = sm.mem.new_const(0, T_INT)  # el 0 tambien es una constante con direccion (E3)
+    sm.names[zero] = 0
+    temp = sm.new_temp(res_type)
+    sm.emit('-', zero, val, temp, res_type)
     sm.operand_stack.append(temp)
     sm.type_stack.append(res_type)
 
@@ -868,7 +972,7 @@ def p_factor_id(p):
         sm.operand_stack.append(p[1])
         sm.type_stack.append(T_ERROR)
     else:
-        sm.operand_stack.append(p[1])
+        sm.operand_stack.append(var['dir'])  # empuja la direccion de la variable (E3)
         sm.type_stack.append(var['type'])
 
 
@@ -879,45 +983,111 @@ def p_factor_f_call(p):
 
 def p_base_cte_int(p):
     '''base : CTE_INT'''
-    sm.operand_stack.append(p[1])
+    addr = sm.mem.new_const(p[1], T_INT)  # (E3)
+    sm.names[addr] = p[1]
+    sm.operand_stack.append(addr)
     sm.type_stack.append(T_INT)
 
 
 def p_base_cte_float(p):
     '''base : CTE_FLOAT'''
-    sm.operand_stack.append(p[1])
+    addr = sm.mem.new_const(p[1], T_FLOAT)  # (E3)
+    sm.names[addr] = p[1]
+    sm.operand_stack.append(addr)
     sm.type_stack.append(T_FLOAT)
 
 
 def p_base_cte_str(p):
     '''base : CTE_STR'''
-    sm.operand_stack.append(p[1])
+    addr = sm.mem.new_const(p[1], T_STRING)  # (E3)
+    sm.names[addr] = p[1]
+    sm.operand_stack.append(addr)
     sm.type_stack.append(T_STRING)
 
 
-parser = yacc.yacc()
+parser = yacc.yacc(debug=False, write_tables=False)  # sin generar parser.out / parsetab.py (E3)
 
 
-# --- 4. EJECUCION DESDE EL ARCHIVO ---
+# --- 4. EMISION DE LA REPRESENTACION INTERMEDIA ---
 
 def _format_cell(v):
     return '_' if v is None else str(v)
 
 
 def format_quads(quads):
+    # Cuadruplos con NOMBRES legibles (para salida_debug.txt) (E3)
     lines = []
-    header = f"{'#':>4} | {'OP':<8} | {'ARG1':<14} | {'ARG2':<14} | {'RES':<14} | TIPO"
+    header = f"{'#':>4} | {'OP':<9} | {'ARG1':<16} | {'ARG2':<16} | {'RES':<16} | TIPO"
     lines.append(header)
     lines.append("-" * len(header))
     for i, q in enumerate(quads, start=1):
         lines.append(
-            f"{i:>4} | {q.op:<8} | "
-            f"{_format_cell(q.arg1):<14} | "
-            f"{_format_cell(q.arg2):<14} | "
-            f"{_format_cell(q.res):<14} | "
+            f"{i:>4} | {q.op:<9} | "
+            f"{_format_cell(q.arg1_name):<16} | "
+            f"{_format_cell(q.arg2_name):<16} | "
+            f"{_format_cell(q.res_name):<16} | "
             f"{q.type_res}"
         )
     return "\n".join(lines)
+
+
+# Orden fijo de los contadores de memoria global (convencion de clase) (E3)
+GLOBAL_MEM_ORDER = [
+    'global_int', 'global_float', 'global_str', 'global_void',
+    'temp_int', 'temp_float', 'temp_bool',
+    'cte_int', 'cte_float', 'cte_str',
+]
+
+
+def build_obj(manager):
+    """Representacion intermedia en DIRECCIONES (lo ejecuta la VM). (E3)
+    Secciones: constantes, contadores de memoria, bloques por funcion y cuadruplos."""
+    m = manager.mem
+    main_frame = manager.main_frame or {'temp_int': 0, 'temp_float': 0, 'temp_bool': 0}
+    out = []
+
+    # 1) Constantes: valor  direccion
+    out.append("%%CONSTANTS")
+    for (value, _t), addr in sorted(m.const_table.items(), key=lambda kv: kv[1]):
+        out.append(f"{value}\t{addr}")
+
+    # 2) Contadores de memoria global (incluye temporales del main)
+    out.append("%%GLOBALMEM")
+    counts = {
+        'global_int': m.global_count['int'], 'global_float': m.global_count['float'],
+        'global_str': m.global_count['string'], 'global_void': m.global_count['void'],
+        'temp_int': main_frame['temp_int'], 'temp_float': main_frame['temp_float'],
+        'temp_bool': main_frame['temp_bool'],
+        'cte_int': m.const_count['int'], 'cte_float': m.const_count['float'],
+        'cte_str': m.const_count['string'],
+    }
+    for k in GLOBAL_MEM_ORDER:
+        out.append(f"{k}\t{counts[k]}")
+
+    # 3) Bloque de memoria por funcion (dimensiona cada frame en la VM)
+    out.append("%%FUNCTIONS")
+    for name, f in manager.func_dir.funcs.items():
+        if name == 'global':
+            continue
+        fm = f['mem'] or {}
+        ret = f['func_addr'] if f['return_type'] != T_VOID else -1
+        out.append(
+            f"{f['func_addr']}\t{f['quad_start']}\t{f['num_params']}\t"
+            f"{fm.get('local_int', 0)}\t{fm.get('local_float', 0)}\t{fm.get('local_str', 0)}\t"
+            f"{fm.get('temp_int', 0)}\t{fm.get('temp_float', 0)}\t{fm.get('temp_bool', 0)}\t{ret}"
+        )
+
+    # 4) Cuadruplos en direcciones
+    out.append("%%QUADS")
+    for i, q in enumerate(manager.quads, start=1):
+        out.append(f"{i}\t{q.op}\t{_cell(q.arg1)}\t{_cell(q.arg2)}\t{_cell(q.res)}")
+
+    out.append("%%END")
+    return "\n".join(out) + "\n"
+
+
+def _cell(v):
+    return -1 if v is None else v
 
 
 def format_symbol_table(func_dir):
@@ -931,7 +1101,7 @@ def format_symbol_table(func_dir):
         if not glob['var_table'].vars:
             lines.append("  (sin variables)")
         for name, info in glob['var_table'].vars.items():
-            lines.append(f"  - {name}: {info['type']}")
+            lines.append(f"  - {name}: {info['type']}  @ dir {info['dir']}")
 
     lines.append("\n[Directorio de funciones]")
     user_funcs = {n: f for n, f in func_dir.funcs.items() if n != 'global'}
@@ -948,38 +1118,35 @@ def format_symbol_table(func_dir):
         if not finfo['var_table'].vars:
             lines.append("        (ninguna)")
         for name, info in finfo['var_table'].vars.items():
-            lines.append(f"        - {name}: {info['type']}")
+            lines.append(f"        - {name}: {info['type']}  @ dir {info['dir']}")
     return "\n".join(lines)
+
+
+# --- 5. MAIN PRINCIPAL (ENTREGA 3) ---
+# Abre un unico source code (input.txt por defecto, o el dado por terminal),
+# lo compila (lexico, sintaxis, semantica, representacion intermedia) y, si es
+# valido, ejecuta su representacion intermedia en la maquina virtual.
 if __name__ == '__main__':
-    print("COMPILADOR LITTLE DUCK - ENTREGA 2")
+    from vm import VirtualMachine  # la VM es un programa independiente
 
-    # 1. Leemos el argumento de la terminal
-    nombre_archivo = sys.argv[1] if len(sys.argv) > 1 else "prueba.txt"
-
-    # 2. ¡EL ARREGLO ESTÁ AQUÍ! Pasamos la variable 'nombre_archivo' en lugar de un texto fijo
-    texto_actual = open(nombre_archivo).read()
-
-    print(f"[OK] Leyendo contenido de '{nombre_archivo}'...")
-    print("-" * 40)
-    print(texto_actual)
-    print("-" * 40)
+    nombre_archivo = sys.argv[1] if len(sys.argv) > 1 else "input.txt"
+    texto_actual = open(nombre_archivo, encoding="utf-8").read()
 
     parser.parse(texto_actual, lexer=lexer)
 
     if hubo_errores or sm.has_errors:
-        print("\n[!] Hubo errores. No se genero el archivo de salida.")
-    else:
-        print("\nREPRESENTACION INTERMEDIA (CUADRUPLOS)")
-        print("-" * 38)
-        quads_str = format_quads(sm.quads)
-        print(quads_str)
+        # Los errores de compilacion ya se imprimieron con su linea. Abortar.
+        sys.exit(1)
 
-        symbols_str = format_symbol_table(sm.func_dir)
-        print("\n" + symbols_str)
+    # Representacion intermedia: en DIRECCIONES (obj.txt, ejecutado por la VM)
+    # y en NOMBRES (salida_debug.txt, para depuracion).
+    obj_text = build_obj(sm)
+    with open("obj.txt", "w", encoding="utf-8") as fout:
+        fout.write(obj_text)
+    with open("salida_debug.txt", "w", encoding="utf-8") as fout:
+        fout.write(format_quads(sm.quads) + "\n\n" + format_symbol_table(sm.func_dir) + "\n")
 
-        with open("prueba-ir.txt", "w", encoding="utf-8") as fout:
-            fout.write(quads_str)
-            fout.write("\n\n")
-            fout.write(symbols_str)
-            fout.write("\n")
-        print("\n[OK] Representacion intermedia escrita en 'prueba-ir.txt'")
+    # Ejecuta la representacion intermedia en la maquina virtual.
+    vm = VirtualMachine()
+    vm.load(obj_text)
+    vm.run()

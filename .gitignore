@@ -20,3 +20,6 @@ Reporte_Entrega2.docx
 
 # Salidas capturadas de los casos de prueba (output, no fuente)
 casos_prueba/salidas/
+# Salidas generadas por la VM/compilador (se reproducen al correr main.py)
+obj.txt
+salida_debug.txt

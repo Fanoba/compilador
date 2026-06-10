@@ -1,0 +1,30 @@
+program demo ;
+
+var
+  n : int ;
+  acum : float ;
+
+int factorial ( x : int ) [
+    var r : int ;
+    {
+        if ( x > 1 ) {
+            r = factorial( x - 1 ) ;
+            return x * r ;
+        } ;
+        return 1 ;
+    }
+] ;
+
+main {
+    n = 5 ;
+    print("factorial de ", n, " = ", factorial( n )) ;
+
+    acum = 0.0 ;
+    n = 1 ;
+    do {
+        acum = acum + n ;
+        n = n + 1 ;
+    } while ( n <= 4 ) ;
+    print("suma 1..4 = ", acum) ;
+}
+end

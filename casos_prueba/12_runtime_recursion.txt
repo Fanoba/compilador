@@ -1,0 +1,10 @@
+program recursion_inf ;
+var n : int ;
+int loop ( x : int ) [
+    { return loop( x + 1 ) ; }
+] ;
+main {
+    n = loop( 1 ) ;
+    print(n) ;
+}
+end
